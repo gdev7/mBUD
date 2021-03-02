@@ -1,18 +1,11 @@
 import os
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 from numpy import sin,cos
 import math
-#import datetime
-from collections import defaultdict
-import itertools
-import copy
 
 import networkx as nx
-import pickle
 
-import time
 import datetime
 
 class LIBRARY:
@@ -37,20 +30,12 @@ class LIBRARY:
         self.RCOVcsv = self.path + "rcov.csv"
         self.dfrcov = pd.read_csv(self.RCOVcsv)
         
-        # RDkit info
-        #self.pt = Chem.GetPeriodicTable()
-        
-        # Valence List
-        self.VALENCEcsv = self.path + "valence.csv"
-        self.dfvalence = pd.read_csv(self.VALENCEcsv)
-
 class ATOM(LIBRARY):
     
     dim = 3
     lib = LIBRARY()
     
     def __init__ (self, data, index):
-        #self.label = data[0]
         self.label = data[1] + str(index + 1)
         self.symbol = data[1]
         self.index = index
@@ -64,11 +49,22 @@ class ATOM(LIBRARY):
         
         self.x = []
         self.writex = []
+        
         for idim in range(self.dim):
             self.x.append(data[idim+3])
             self.writex.append(data[idim+3])
             
         self.rcov = self.get_rcov()
+        
+    def destroy(self, array):
+        del array
+        array = []
+        return array
+    
+    def destroy_all(self):
+        del self.neighborlist
+        del self.x
+        del self.writex
             
     def get_rcov(self):
         return self.lib.dfrcov.iloc[self.lib.dfrcov[(self.lib.dfrcov['Symbol'] == self.symbol)].index[0]]['Rcov']
@@ -82,11 +78,6 @@ class ATOM(LIBRARY):
     
     def setnneighborzero(self):
         self.nneighbor = 0
-    
-    def destroy(self, array):
-        del array
-        array = []
-        return array
     
     def check_neighbor(self, iindex):
         
@@ -166,6 +157,43 @@ class MOF(ATOM,LIBRARY):
         del array
         array = []
         return array
+    
+    def destroy_all(self):
+        del self.name
+        del self.mofdir
+        
+        self.G.clear()
+        self.fragG.clear()
+        self.compG.clear()
+        
+        del self.lx
+        del self.ar
+        
+        for iatom in self.atom:
+            iatom.destroy_all()
+        del self.atom
+        
+        del self.h
+        del self.hinv
+        del self.atomtypelist
+        del self.metaltypelist
+        
+        #SBU lists (frag)
+        del self.linkerlist
+        del self.funcgrouplist
+        del self.solventlist
+        del self.metalnodelist
+        del self.capairlist
+        
+        #SBU lists (comp)
+        del self.complinkerlist
+        del self.compmetalnodelist
+        del self.compcapairlist
+        
+        del self.gridlx
+        del self.ngrid
+        del self.neighgrid
+        del self.gridatomlist
         
     def get_boxinfo(self):
         self.ciffile = self.mofdir + self.name + self.lib.cifextension
@@ -177,41 +205,44 @@ class MOF(ATOM,LIBRARY):
         
         index = 0
         
-        with open (self.ciffile,'r') as file:
-            for line in file:
-                list = line.split()
+        f = open (self.ciffile,'r')
+        lines = f.readlines()
+        f.close()
+        
+        for line in lines:
+            list = line.split()
 
-                if len(list) > 0:
-                    if list[0] == '_cell_length_a':
-                        self.lx.append(float(list[1]))
-                    if list[0] == '_cell_length_b':
-                        self.lx.append(float(list[1]))
-                    if list[0] == '_cell_length_c':
-                        self.lx.append(float(list[1]))
+            if len(list) > 0:
+                if list[0] == '_cell_length_a':
+                    self.lx.append(float(list[1]))
+                if list[0] == '_cell_length_b':
+                    self.lx.append(float(list[1]))
+                if list[0] == '_cell_length_c':
+                    self.lx.append(float(list[1]))
 
-                    if list[0] == '_cell_angle_alpha':
-                        self.ar.append(self.lib.a2r*float(list[1]))
-                    if list[0] == '_cell_angle_beta':
-                        self.ar.append(self.lib.a2r*float(list[1]))
-                    if list[0] == '_cell_angle_gamma':
-                        self.ar.append(self.lib.a2r*float(list[1]))
+                if list[0] == '_cell_angle_alpha':
+                    self.ar.append(self.lib.a2r*float(list[1]))
+                if list[0] == '_cell_angle_beta':
+                    self.ar.append(self.lib.a2r*float(list[1]))
+                if list[0] == '_cell_angle_gamma':
+                    self.ar.append(self.lib.a2r*float(list[1]))
 
-                    if list[0] == 'loop_':
-                        self.loop = True
+                if list[0] == 'loop_':
+                    self.loop = True
 
-                    if self.loop == True and len(list) > 5:
-                        data = []
-                        #label, symbol, symmetry, ux, uy, uz, occupancy
-                        data.append(list[0])
-                        data.append(list[1])
-                        data.append(int(list[2]))
-                        data.append(float(list[3]))
-                        data.append(float(list[4]))
-                        data.append(float(list[5]))
-                        data.append(float(list[6]))
-                        self.atom.append(ATOM(data,index))
-                        del data
-                        index += 1
+                if self.loop == True and len(list) > 5:
+                    data = []
+                    #label, symbol, symmetry, ux, uy, uz, occupancy
+                    data.append(list[0])
+                    data.append(list[1])
+                    data.append(int(list[2]))
+                    data.append(float(list[3]))
+                    data.append(float(list[4]))
+                    data.append(float(list[5]))
+                    data.append(float(list[6]))
+                    self.atom.append(ATOM(data,index))
+                    del data
+                    index += 1
                         
     def get_hmatrix(self):
         self.h = self.destroy(self.h)
@@ -559,8 +590,6 @@ class MOF(ATOM,LIBRARY):
         
     def get_neighborlist_without_grid(self):
         
-        start = time.time()
-        
         self.G.clear()
         self.G.add_nodes_from([i for i in range(len(self.atom))])
             
@@ -575,12 +604,7 @@ class MOF(ATOM,LIBRARY):
                         if self.G.has_edge(iatom.index, jatom.index) == False:
                             self.G.add_edge(iatom.index, jatom.index)
         
-        end = time.time()
-        #print('Bond Calculation Time (s):\t', (end-start))
-        
     def get_neighborlist_with_grid(self):
-        
-        start = time.time()
         
         self.G.clear()
         self.G.add_nodes_from([i for i in range(len(self.atom))])
@@ -597,9 +621,6 @@ class MOF(ATOM,LIBRARY):
                             
                             if self.G.has_edge(iatom.index, jatom.index) == False:
                                 self.G.add_edge(iatom.index, jatom.index)
-                                
-        end = time.time()
-        #print('Bond Calculation Time (s):\t', (end-start))
         
     def get_neighborlist(self, grid):
         
@@ -1020,6 +1041,7 @@ class MOF(ATOM,LIBRARY):
         today = datetime.date.today()
         date = today.strftime("%Y-%m-%d")
         f.write('_audit_creation_date\t\t\t%s\n' %date)
+        del date
         f.write('_audit_creation_method\t\t\t\'mfg\'\n')
         f.write('_symmetry_space_group_name_H-M\t\t\'P1\'\n')
         f.write('_symmetry_Int_Tables_number\t\t1\n')
@@ -1094,90 +1116,84 @@ class MOF(ATOM,LIBRARY):
         f.close()
 
 
-MOFdir = '/home/aamir/Documents/Prasoon/web-aamir/web/all-renamed-database/'
-wdir = os.getcwd()
+if __name__ == '__main__':
+    
+    MOFdir = '/home/user/data/'
+    wdir = os.getcwd()
 
-iMOF = MOF('ABESUX_clean',MOFdir)
-#ABETIN_clean
-#ABAYIO_clean
-#ABAVIJ_clean
-#ACAKUM_clean
-#EHUTAE_clean
-#ABEFUL_clean
-#ABESUX_clean
-#BEQFEK_clean
-iMOF.get_boxinfo()
-iMOF.get_hmatrix()
-iMOF.get_atomtypelist()
-iMOF.get_metaltypelist()
-iMOF.get_atomgridinfo()
-iMOF.clear_neighborlist()
-iMOF.get_neighborlist(True)
-iMOF.get_solvent()
-#iMOF.break_mof()
+    iMOF = MOF('ABAVIJ_clean',MOFdir)
+    iMOF.get_boxinfo()
+    iMOF.get_hmatrix()
+    iMOF.get_atomtypelist()
+    iMOF.get_metaltypelist()
+    iMOF.get_atomgridinfo()
+    iMOF.clear_neighborlist()
+    iMOF.get_neighborlist(True)
+    iMOF.get_solvent()
+    iMOF.break_mof()
 
-if len(iMOF.compmetalnodelist) > 0:
-    uniqmetalnodelist = iMOF.get_uniq_fragmentlist(iMOF.compmetalnodelist)
-    count = 0
-    for uniq in uniqmetalnodelist:
-        xyzfile = wdir + '/test-cases/' + 'comp-node-' + str(count) + '.xyz'
-        iMOF.write_xyz(uniq, xyzfile, 0)
-        
-        ciffile = wdir + '/test-cases/' + 'comp-node-' + str(count) + '.cif'
-        iMOF.write_cif(uniq, ciffile, 0)
-        count += 1
+    if len(iMOF.compmetalnodelist) > 0:
+        uniqmetalnodelist = iMOF.get_uniq_fragmentlist(iMOF.compmetalnodelist)
+        count = 0
+        for uniq in uniqmetalnodelist:
+            xyzfile = wdir + 'comp-node-' + str(count) + '.xyz'
+            iMOF.write_xyz(uniq, xyzfile, 0)
 
-if len(iMOF.complinkerlist) > 0:
-    uniqlinkerlist = iMOF.get_uniq_fragmentlist(iMOF.complinkerlist)
-    count = 0
-    for uniq in uniqlinkerlist:
-        xyzfile = wdir + '/test-cases/' + 'comp-linker-' + str(count) + '.xyz'
-        iMOF.write_xyz(uniq, xyzfile, 1)
-        
-        ciffile = wdir + '/test-cases/' + 'comp-linker-' + str(count) + '.cif'
-        iMOF.write_cif(uniq, ciffile, 1)
-        count += 1
+            ciffile = wdir + 'comp-node-' + str(count) + '.cif'
+            iMOF.write_cif(uniq, ciffile, 0)
+            count += 1
 
-if len(iMOF.metalnodelist) > 0:
-    uniqmetalnodelist = iMOF.get_uniq_fragmentlist(iMOF.metalnodelist)
-    count = 0
-    for uniq in uniqmetalnodelist:
-        xyzfile = wdir + '/test-cases/' + 'node-' + str(count) + '.xyz'
-        iMOF.write_xyz(uniq, xyzfile, 2)
-        
-        ciffile = wdir + '/test-cases/' + 'node-' + str(count) + '.cif'
-        iMOF.write_cif(uniq, ciffile, 2)
-        count += 1
+    if len(iMOF.complinkerlist) > 0:
+        uniqlinkerlist = iMOF.get_uniq_fragmentlist(iMOF.complinkerlist)
+        count = 0
+        for uniq in uniqlinkerlist:
+            xyzfile = wdir + 'comp-linker-' + str(count) + '.xyz'
+            iMOF.write_xyz(uniq, xyzfile, 1)
 
-if len(iMOF.linkerlist) > 0:
-    uniqlinkerlist = iMOF.get_uniq_fragmentlist(iMOF.linkerlist)
-    count = 0
-    for uniq in uniqlinkerlist:
-        xyzfile = wdir + '/test-cases/' + 'linker-' + str(count) + '.xyz'
-        iMOF.write_xyz(uniq, xyzfile, 2)
-        
-        ciffile = wdir + '/test-cases/' + 'linker-' + str(count) + '.cif'
-        iMOF.write_cif(uniq, ciffile, 2)
-        count += 1
+            ciffile = wdir + 'comp-linker-' + str(count) + '.cif'
+            iMOF.write_cif(uniq, ciffile, 1)
+            count += 1
 
-if len(iMOF.funcgrouplist) > 0:
-    uniqfuncgrouplist = iMOF.get_uniq_fragmentlist(iMOF.funcgrouplist)
-    count = 0
-    for uniq in uniqfuncgrouplist:
-        xyzfile = wdir + '/test-cases/' + 'func-' + str(count) + '.xyz'
-        iMOF.write_xyz(uniq, xyzfile, 2)
-        
-        ciffile = wdir + '/test-cases/' + 'funcgroup-' + str(count) + '.cif'
-        iMOF.write_cif(uniq, ciffile, 2)
-        count += 1
+    if len(iMOF.metalnodelist) > 0:
+        uniqmetalnodelist = iMOF.get_uniq_fragmentlist(iMOF.metalnodelist)
+        count = 0
+        for uniq in uniqmetalnodelist:
+            xyzfile = wdir + 'node-' + str(count) + '.xyz'
+            iMOF.write_xyz(uniq, xyzfile, 2)
 
-if len(iMOF.solventlist) > 0:
-    uniqsolventlist = iMOF.get_uniq_fragmentlist(iMOF.solventlist)
-    count = 0
-    for uniq in uniqsolventlist:
-        xyzfile = wdir + '/test-cases/' + 'solvent-' + str(count) + '.xyz'
-        iMOF.write_xyz(uniq, xyzfile, 2)
-        
-        ciffile = wdir + '/test-cases/' + 'solvent-' + str(count) + '.cif'
-        iMOF.write_cif(uniq, ciffile, 2)
-        count += 1
+            ciffile = wdir + 'node-' + str(count) + '.cif'
+            iMOF.write_cif(uniq, ciffile, 2)
+            count += 1
+
+    if len(iMOF.linkerlist) > 0:
+        uniqlinkerlist = iMOF.get_uniq_fragmentlist(iMOF.linkerlist)
+        count = 0
+        for uniq in uniqlinkerlist:
+            xyzfile = wdir + 'linker-' + str(count) + '.xyz'
+            iMOF.write_xyz(uniq, xyzfile, 2)
+
+            ciffile = wdir + 'linker-' + str(count) + '.cif'
+            iMOF.write_cif(uniq, ciffile, 2)
+            count += 1
+
+    if len(iMOF.funcgrouplist) > 0:
+        uniqfuncgrouplist = iMOF.get_uniq_fragmentlist(iMOF.funcgrouplist)
+        count = 0
+        for uniq in uniqfuncgrouplist:
+            xyzfile = wdir + 'func-' + str(count) + '.xyz'
+            iMOF.write_xyz(uniq, xyzfile, 2)
+
+            ciffile = wdir + 'funcgroup-' + str(count) + '.cif'
+            iMOF.write_cif(uniq, ciffile, 2)
+            count += 1
+
+    if len(iMOF.solventlist) > 0:
+        uniqsolventlist = iMOF.get_uniq_fragmentlist(iMOF.solventlist)
+        count = 0
+        for uniq in uniqsolventlist:
+            xyzfile = wdir + 'solvent-' + str(count) + '.xyz'
+            iMOF.write_xyz(uniq, xyzfile, 2)
+
+            ciffile = wdir + 'solvent-' + str(count) + '.cif'
+            iMOF.write_cif(uniq, ciffile, 2)
+            count += 1
