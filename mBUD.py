@@ -1197,3 +1197,4 @@ if __name__ == '__main__':
             ciffile = wdir + 'solvent-' + str(count) + '.cif'
             iMOF.write_cif(uniq, ciffile, 2)
             count += 1
+    iMOF.destroy_all()
