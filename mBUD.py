@@ -947,34 +947,35 @@ class MOF(ATOM,LIBRARY):
             for iindex in fragment:
                 iatom = self.atom[iindex]
                 for jindex in iatom.neighborlist:
-                    if iindex > jindex:
-                        jatom = self.atom[jindex]
-                        for idim in range(self.dim):
-                            val = abs(iatom.writex[idim] - jatom.writex[idim])
-                            if val > 0.5:
-                                #print('before:', iatom.label, iatom.x, jatom.label, jatom.x)
-                                #print(idim, iatom.label, iatom.x, jatom.label, jatom.x)
-                                if iatom.writex[idim] > jatom.writex[idim]:
-                                    for i, dim in atomshift:
-                                        if i == iindex:
-                                            if dim[idim] == False:
-                                                iatom.writex[idim] -= 1.0
-                                                shift = True
-                                                dim[idim] = True
-                                                break
-                                else:
-                                    for i, dim in atomshift:
-                                        if i == jindex:
-                                            if dim[idim] == False:
-                                                jatom.writex[idim] -= 1.0
-                                                shift = True
-                                                dim[idim] = True
-                                                break
-                                #print('shift:', iindex, jindex)
-                                #print('after:', iatom.label, iatom.x, jatom.label, jatom.x, '\n')
-                                break
-                    if shift:
-                        break
+                	if jindex in fragment:
+	                    if iindex > jindex:
+	                        jatom = self.atom[jindex]
+	                        for idim in range(self.dim):
+	                            val = abs(iatom.writex[idim] - jatom.writex[idim])
+	                            if val > 0.5:
+	                                #print('before:', iatom.label, iatom.x, jatom.label, jatom.x)
+	                                #print(idim, iatom.label, iatom.x, jatom.label, jatom.x)
+	                                if iatom.writex[idim] > jatom.writex[idim]:
+	                                    for i, dim in atomshift:
+	                                        if i == iindex:
+	                                            if dim[idim] == False:
+	                                                iatom.writex[idim] -= 1.0
+	                                                shift = True
+	                                                dim[idim] = True
+	                                                break
+	                                else:
+	                                    for i, dim in atomshift:
+	                                        if i == jindex:
+	                                            if dim[idim] == False:
+	                                                jatom.writex[idim] -= 1.0
+	                                                shift = True
+	                                                dim[idim] = True
+	                                                break
+	                                #print('shift:', iindex, jindex)
+	                                #print('after:', iatom.label, iatom.x, jatom.label, jatom.x, '\n')
+	                                break
+	                    if shift:
+	                        break
                 if shift:
                     break
 
@@ -982,7 +983,6 @@ class MOF(ATOM,LIBRARY):
                 done = True
                 
         del atomshift
-        return fragment
     
     def update_label(self, label):
         
@@ -1015,7 +1015,7 @@ class MOF(ATOM,LIBRARY):
 
     def write_xyz(self, fragment, xyzfile, case):
         
-        fragment = self.wrap_fragment(fragment)
+        self.wrap_fragment(fragment)
         f = open(xyzfile,'w')
         f.write("%-4d\n\n" %len(fragment))
     
@@ -1036,6 +1036,7 @@ class MOF(ATOM,LIBRARY):
         
     def write_cif(self, fragment, ciffile, case):
 
+    	self.wrap_fragment(fragment)
         f = open(ciffile,'w')
         f.write(self.name + '\n')
         today = datetime.date.today()
