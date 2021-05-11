@@ -10,11 +10,9 @@ We have provided the code for the entire package here as well as on our [web pag
 
 ## Database
 
-<<<<<<< HEAD
 The building unit (BU) [database](https://cnislab.com/mbud/database) consists of all the unique BU extracted from the Computation-Ready, Experimental (CoRE) MOF 2019-ASR database. The CoRE database consists of 9,268 MOF structures. We extracted 2,671 BUs ( including metal nodes, organic linkers, and functional groups) from the entire CoRE database. 
-=======
+
 The building unit (BU) [database](https://cnislab.com/mbud/database) consists of all the unique BU extracted from the Computation-Ready, Experimental (CoRE) MOF 2019-ASR database. The CoRE database consists of 9,268 MOF structures. We extracted  2,671 BUs ( including metal nodes, organic linkers, and functional groups) from the entire CoRE database. 
->>>>>>> c72dc59c40f611c486c75b4d8039a8d892415571
 The provided database comprises both the experimental and computational BUs. Experimental BUs are essential for the visualization of the MOF chemistry. On the other hand, the computational BUs can be readily employed to construct MOF crystals computationally.
 
 ## Web
