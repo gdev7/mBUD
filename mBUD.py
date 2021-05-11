@@ -12,8 +12,8 @@ class LIBRARY:
     
     def __init__ (self):
         
-        # Library path
-        self.path = os.getcwd() + "/lib/"
+        # Library dir
+        self.dir = os.getcwd() + "/lib/"
         
         # General infor
         self.dim = 3
@@ -22,13 +22,13 @@ class LIBRARY:
         self.xyzextension = '.xyz'
         
         # Metal info
-        self.METALcsv = self.path + "metal.csv"
+        self.METALcsv = self.dir + "metal.csv"
         self.dfmetal = pd.read_csv(self.METALcsv)
         self.metalsymbol = self.dfmetal.iloc[:,1]
 
         # Bond info
-        self.RCOVcsv = self.path + "rcov.csv"
-        self.dfrcov = pd.read_csv(self.RCOVcsv)
+        self.ATRcsv = self.dir + "atr.csv"
+        self.dfatr = pd.read_csv(self.ATRcsv)
         
 class ATOM(LIBRARY):
     
@@ -36,6 +36,7 @@ class ATOM(LIBRARY):
     lib = LIBRARY()
     
     def __init__ (self, data, index):
+        #self.label = data[0]
         self.label = data[1] + str(index + 1)
         self.symbol = data[1]
         self.index = index
@@ -54,7 +55,7 @@ class ATOM(LIBRARY):
             self.x.append(data[idim+3])
             self.writex.append(data[idim+3])
             
-        self.rcov = self.get_rcov()
+        self.atr = self.get_atr()
         
     def destroy(self, array):
         del array
@@ -62,19 +63,26 @@ class ATOM(LIBRARY):
         return array
     
     def destroy_all(self):
+        del self.label
+        del self.symbol
+
         del self.neighborlist
         del self.x
         del self.writex
             
-    def get_rcov(self):
-        return self.lib.dfrcov.iloc[self.lib.dfrcov[(self.lib.dfrcov['Symbol'] == self.symbol)].index[0]]['Rcov']
+    def get_atr(self):
+        try:
+            atr = self.lib.dfatr.iloc[self.lib.dfatr[(self.lib.dfatr['Symbol'] == self.symbol)].index[0]]['atr']
+        except:
+            raise ValueError('ATR not found')
+        return atr
     
     def print_info(self):
         print(self.index, end = ' ')
         print(self.label, end = ' ')
         print(self.symbol, end = ' ')
         print(self.x, end = ' ')
-        print(self.rcov)
+        print(self.atr)
     
     def setnneighborzero(self):
         self.nneighbor = 0
@@ -107,7 +115,7 @@ class ATOM(LIBRARY):
                 self.add_neighbor(ineighbor)
                 
         del currentneighborlist
-
+        
 class MOF(ATOM,LIBRARY):
     
     lib = LIBRARY()
@@ -143,9 +151,9 @@ class MOF(ATOM,LIBRARY):
         self.compcapairlist = []
         
         #Grid Informations
-        self.skin = 0.45
+        self.skin = 0.18
         self.gridlxmax = self.skin
-        self.minbondlength2 = 0.63*0.63
+        #self.minbondlength2 = 0.63*0.63
         self.totgrid = 1
         
         self.gridlx = []
@@ -196,7 +204,8 @@ class MOF(ATOM,LIBRARY):
         del self.gridatomlist
         
     def get_boxinfo(self):
-        self.ciffile = self.mofdir + self.name + self.lib.cifextension
+        ciffilename = self.name + self.lib.cifextension
+        self.ciffile = os.path.join(self.mofdir, ciffilename)
         
         self.loop = False
         self.atom = self.destroy(self.atom)
@@ -242,8 +251,9 @@ class MOF(ATOM,LIBRARY):
                     data.append(float(list[6]))
                     self.atom.append(ATOM(data,index))
                     del data
-                    index += 1
-                        
+                    index += 1   
+        del lines
+
     def get_hmatrix(self):
         self.h = self.destroy(self.h)
             
@@ -454,7 +464,7 @@ class MOF(ATOM,LIBRARY):
                 tempatomtypelist.append(iatom.symbol)
                 data = []
                 data.append(iatom.symbol)
-                data.append(self.lib.dfrcov.iloc[self.lib.dfrcov[(self.lib.dfrcov['Symbol'] == iatom.symbol)].index[0]]['Rcov'])
+                data.append(self.lib.dfatr.iloc[self.lib.dfatr[(self.lib.dfatr['Symbol'] == iatom.symbol)].index[0]]['atr'])
                 self.atomtypelist.append(data)
                 del data
         del tempatomtypelist
@@ -522,7 +532,7 @@ class MOF(ATOM,LIBRARY):
             Slide number: 20+
            2. r_cov values are taken from openbabel elementtable.h
         '''
-        maxdx2 = iatom.rcov + jatom.rcov + self.skin
+        maxdx2 = iatom.atr + jatom.atr + self.skin
         maxdx2 *= maxdx2
         
         x1 = iatom.x
@@ -546,7 +556,11 @@ class MOF(ATOM,LIBRARY):
                 return False
         
         del dx
-        if val < self.minbondlength2:
+        
+        minbondlength2 = (iatom.atr + jatom.atr)/2.0
+        minbondlength2 *= minbondlength2
+        
+        if val < minbondlength2:
             f = open('overlap.txt','a')
             f.write('%a %a %a %-10.6f\n' %(self.name, iatom.label, jatom.label, np.sqrt(val)))
             f.close()
@@ -590,6 +604,8 @@ class MOF(ATOM,LIBRARY):
         
     def get_neighborlist_without_grid(self):
         
+        start = time.time()
+        
         self.G.clear()
         self.G.add_nodes_from([i for i in range(len(self.atom))])
             
@@ -604,7 +620,12 @@ class MOF(ATOM,LIBRARY):
                         if self.G.has_edge(iatom.index, jatom.index) == False:
                             self.G.add_edge(iatom.index, jatom.index)
         
+        end = time.time()
+        #print('Bond Calculation Time (s):\t', (end-start))
+        
     def get_neighborlist_with_grid(self):
+        
+        start = time.time()
         
         self.G.clear()
         self.G.add_nodes_from([i for i in range(len(self.atom))])
@@ -621,6 +642,9 @@ class MOF(ATOM,LIBRARY):
                             
                             if self.G.has_edge(iatom.index, jatom.index) == False:
                                 self.G.add_edge(iatom.index, jatom.index)
+                                
+        end = time.time()
+        #print('Bond Calculation Time (s):\t', (end-start))
         
     def get_neighborlist(self, grid):
         
@@ -666,7 +690,10 @@ class MOF(ATOM,LIBRARY):
                 
         #Remove solvent from graph
         if len(self.solventlist) > 0:
-            #print('Solvent presence:\t\t','True')
+            f = open('solvent.txt','a')
+            f.write('%a\n' %self.name)
+            f.close()
+            print('Solvent presence:\t\t','True')
             for isolvent in self.solventlist:
                 self.G.remove_nodes_from(isolvent)
         '''
@@ -687,8 +714,6 @@ class MOF(ATOM,LIBRARY):
         
         self.capairlist = self.destroy(self.capairlist)
 
-        #Co-O-C-(OL)-O-Co
-        #Co-N-OL-N-Co
         #get capairlist
         for imetaltype in self.metaltypelist:
             for imetalindex in imetaltype[1]:
@@ -785,10 +810,16 @@ class MOF(ATOM,LIBRARY):
         for imetalnode in self.metalnodelist:
             calist = []
             for iindex in imetalnode:
+                print(self.atom[iindex].label)
                 for inode, jnode in self.capairlist:
                     if iindex == inode:
                         calist.append(jnode)
 
+            print(calist)
+            for ica in calist:
+                print(self.atom[ica].label, end = ' ')
+            print('')
+            
             capairlist = []
             removecalist = []
             for k, ica in enumerate(calist):
@@ -797,22 +828,47 @@ class MOF(ATOM,LIBRARY):
                         for jneighbor in self.atom[jca].neighborlist:
                             if ineighbor == jneighbor:
                                 if ineighbor not in imetalnode:
-                                    for kneighbor in self.atom[jneighbor].neighborlist:
-                                        if kneighbor not in allcalist:
-                                            capairlist.append([jneighbor,kneighbor])
-                                            if ica not in removecalist:
-                                                removecalist.append(ica)
-                                            if jca not in removecalist:
-                                                removecalist.append(jca)
+                                    update = True
+                                    for kneighbor in self.atom[ica].neighborlist:
+                                        if kneighbor not in imetalnode:
+                                            if kneighbor != ineighbor:
+                                                if self.atom[kneighbor].symbol != 'H':
+                                                    update = False
+                                    for kneighbor in self.atom[jca].neighborlist:
+                                        if kneighbor not in imetalnode:
+                                            if kneighbor != ineighbor:
+                                                if self.atom[kneighbor].symbol != 'H':
+                                                    update = False
+                                    
+                                    if update:
+                                        print(self.atom[ica].index,self.atom[ica].label,self.atom[ica].neighborlist)
+                                        print(self.atom[jca].index,self.atom[jca].label,self.atom[jca].neighborlist)
+                                        print(self.atom[ineighbor].index,self.atom[ineighbor].label)
+
+                                    if update:
+                                        for kneighbor in self.atom[jneighbor].neighborlist:
+                                            if kneighbor not in allcalist:
+                                                if kneighbor not in imetalnode:
+                                                    capairlist.append([jneighbor,kneighbor])
+                                                else:
+                                                    removecalist.append(jneighbor)
+                                                if ica not in removecalist:
+                                                    removecalist.append(ica)
+                                                if jca not in removecalist:
+                                                    removecalist.append(jca)
 
             for inode, jnode in self.capairlist:
                 if jnode in calist:
-                    if jnode not in removecalist:
-                        self.compcapairlist.append([inode,jnode])
+                    if inode in imetalnode:
+                        if jnode not in removecalist:
+                            self.compcapairlist.append([inode,jnode])
 
             if capairlist:
                 for inode, jnode in capairlist:
                     self.compcapairlist.append([inode,jnode])
+                    
+            for inode, jnode in self.compcapairlist:
+                print(self.atom[inode].label,self.atom[jnode].label)
 
             del calist
             del capairlist
@@ -876,7 +932,7 @@ class MOF(ATOM,LIBRARY):
         #print('Functional Group Count:\t\t', len(self.funcgrouplist))
         #print('Organic Linker Counts:\t\t', len(self.linkerlist))
         
-    def get_fragment_data(self, fragment):
+    def get_fragment_data(self, fragment, case):
         
         fragmentatomtypelist = []
         fragmentatomtypelist = self.destroy(fragmentatomtypelist)
@@ -899,9 +955,21 @@ class MOF(ATOM,LIBRARY):
                     break
             fragmentatomtypecountlist[count] += 1
             
-        return fragmentatomtypelist, fragmentatomtypecountlist
+        fragmentnca = 0
+        if case == 0:
+            for iindex in fragment:
+                for inode, jnode in self.capairlist:
+                    if inode == iindex:
+                        fragmentnca += 1
+        elif case == 1:
+            for iindex in fragment:
+                for inode, jnode in self.capairlist:
+                    if jnode == iindex:
+                        fragmentnca += 1
+            
+        return fragmentatomtypelist, fragmentatomtypecountlist, fragmentnca
         
-    def check_uniq_fragmentlist(self, fragment, uniqfragmentlist):
+    def check_uniq_fragmentlist(self, fragment, uniqfragmentlist, case):
         
         if len(uniqfragmentlist) == 0:
             uniqfragmentlist.append(fragment)
@@ -910,24 +978,41 @@ class MOF(ATOM,LIBRARY):
             uniq = True
             for uniqfragment in uniqfragmentlist:
                 if len(uniqfragment) == len(fragment):
-                    uniqfragmentatomtypelist, uniqfragmentatomtypecountlist = self.get_fragment_data(uniqfragment)
-                    fragmentatomtypelist, fragmentatomtypecountlist = self.get_fragment_data(fragment)
+                    uniqfragmentatomtypelist, uniqfragmentatomtypecountlist, uniqfragmentnca = self.get_fragment_data(uniqfragment, case)
+                    fragmentatomtypelist, fragmentatomtypecountlist, fragmentnca = self.get_fragment_data(fragment, case)
                     if uniqfragmentatomtypelist == fragmentatomtypelist:
                         if uniqfragmentatomtypecountlist == fragmentatomtypecountlist:
-                            uniq = False
+                            if case == 0:
+                                if uniqfragmentnca == fragmentnca:
+                                    if fragmentnca != 0:
+                                        uniq = False
+                            elif case == 1:
+                                if uniqfragmentnca == fragmentnca:
+                                    if fragmentnca != 0:
+                                        uniq = False
+                            else:
+                                uniq = False
                             
             if uniq:
                 uniqfragmentlist.append(fragment)
         
         return uniqfragmentlist
         
-    def get_uniq_fragmentlist(self, fragmentlist):
+    def get_uniq_fragmentlist(self, fragmentlist, case):
+        
+        '''
+        Cases:
+        
+        0 - ca connected to metalnode
+        1 - ca connected to linker
+        # - others
+        '''
         
         uniqfragmentlist = []
         uniqfragmentlist = self.destroy(uniqfragmentlist)
         
         for fragment in fragmentlist:
-            uniqfragmentlist = self.check_uniq_fragmentlist(fragment, uniqfragmentlist)
+            uniqfragmentlist = self.check_uniq_fragmentlist(fragment, uniqfragmentlist, case)
             
         return uniqfragmentlist
     
@@ -947,35 +1032,34 @@ class MOF(ATOM,LIBRARY):
             for iindex in fragment:
                 iatom = self.atom[iindex]
                 for jindex in iatom.neighborlist:
-                	if jindex in fragment:
-	                    if iindex > jindex:
-	                        jatom = self.atom[jindex]
-	                        for idim in range(self.dim):
-	                            val = abs(iatom.writex[idim] - jatom.writex[idim])
-	                            if val > 0.5:
-	                                #print('before:', iatom.label, iatom.x, jatom.label, jatom.x)
-	                                #print(idim, iatom.label, iatom.x, jatom.label, jatom.x)
-	                                if iatom.writex[idim] > jatom.writex[idim]:
-	                                    for i, dim in atomshift:
-	                                        if i == iindex:
-	                                            if dim[idim] == False:
-	                                                iatom.writex[idim] -= 1.0
-	                                                shift = True
-	                                                dim[idim] = True
-	                                                break
-	                                else:
-	                                    for i, dim in atomshift:
-	                                        if i == jindex:
-	                                            if dim[idim] == False:
-	                                                jatom.writex[idim] -= 1.0
-	                                                shift = True
-	                                                dim[idim] = True
-	                                                break
-	                                #print('shift:', iindex, jindex)
-	                                #print('after:', iatom.label, iatom.x, jatom.label, jatom.x, '\n')
-	                                break
-	                    if shift:
-	                        break
+                    if iindex > jindex:
+                        jatom = self.atom[jindex]
+                        for idim in range(self.dim):
+                            val = abs(iatom.writex[idim] - jatom.writex[idim])
+                            if val > 0.5:
+                                #print('before:', iatom.label, iatom.x, jatom.label, jatom.x)
+                                #print(idim, iatom.label, iatom.x, jatom.label, jatom.x)
+                                if iatom.writex[idim] > jatom.writex[idim]:
+                                    for i, dim in atomshift:
+                                        if i == iindex:
+                                            if dim[idim] == False:
+                                                iatom.writex[idim] -= 1.0
+                                                shift = True
+                                                dim[idim] = True
+                                                break
+                                else:
+                                    for i, dim in atomshift:
+                                        if i == jindex:
+                                            if dim[idim] == False:
+                                                jatom.writex[idim] -= 1.0
+                                                shift = True
+                                                dim[idim] = True
+                                                break
+                                #print('shift:', iindex, jindex)
+                                #print('after:', iatom.label, iatom.x, jatom.label, jatom.x, '\n')
+                                break
+                    if shift:
+                        break
                 if shift:
                     break
 
@@ -983,6 +1067,7 @@ class MOF(ATOM,LIBRARY):
                 done = True
                 
         del atomshift
+        return fragment
     
     def update_label(self, label):
         
@@ -996,6 +1081,15 @@ class MOF(ATOM,LIBRARY):
         
         status = False
         label = ''
+        
+        '''
+        Cases:
+        
+        0 - compmetalnodelist
+        1 - complinkerlist
+        # - others
+        '''
+        
         if case == 0:
             for inode, jnode in self.compcapairlist:
                 if status == False:
@@ -1015,7 +1109,7 @@ class MOF(ATOM,LIBRARY):
 
     def write_xyz(self, fragment, xyzfile, case):
         
-        self.wrap_fragment(fragment)
+        fragment = self.wrap_fragment(fragment)
         f = open(xyzfile,'w')
         f.write("%-4d\n\n" %len(fragment))
     
@@ -1023,7 +1117,7 @@ class MOF(ATOM,LIBRARY):
             iatom = self.atom[iindex]
             status, label = self.get_label(iindex, case)
             if status:
-                f.write('C')
+                f.write('Ar')
             else:
                 f.write(iatom.symbol)
                 
@@ -1036,7 +1130,6 @@ class MOF(ATOM,LIBRARY):
         
     def write_cif(self, fragment, ciffile, case):
 
-    	self.wrap_fragment(fragment)
         f = open(ciffile,'w')
         f.write(self.name + '\n')
         today = datetime.date.today()
@@ -1080,7 +1173,7 @@ class MOF(ATOM,LIBRARY):
                 f.write(iatom.label)
             f.write('\t')
             if status:
-                f.write('C')
+                f.write('Ar')
             else:
                 f.write(iatom.symbol)
             for idim in range(self.dim):
@@ -1115,8 +1208,7 @@ class MOF(ATOM,LIBRARY):
                         bondpairlist.append(ibondpair)
         del bondpairlist
         f.close()
-
-
+        
 if __name__ == '__main__':
     
     MOFdir = '/home/user/data/'
@@ -1134,7 +1226,7 @@ if __name__ == '__main__':
     iMOF.break_mof()
 
     if len(iMOF.compmetalnodelist) > 0:
-        uniqmetalnodelist = iMOF.get_uniq_fragmentlist(iMOF.compmetalnodelist)
+        uniqmetalnodelist = iMOF.get_uniq_fragmentlist(iMOF.compmetalnodelist, 2)
         count = 0
         for uniq in uniqmetalnodelist:
             xyzfile = wdir + 'comp-node-' + str(count) + '.xyz'
@@ -1145,7 +1237,7 @@ if __name__ == '__main__':
             count += 1
 
     if len(iMOF.complinkerlist) > 0:
-        uniqlinkerlist = iMOF.get_uniq_fragmentlist(iMOF.complinkerlist)
+        uniqlinkerlist = iMOF.get_uniq_fragmentlist(iMOF.complinkerlist, 2)
         count = 0
         for uniq in uniqlinkerlist:
             xyzfile = wdir + 'comp-linker-' + str(count) + '.xyz'
@@ -1156,7 +1248,7 @@ if __name__ == '__main__':
             count += 1
 
     if len(iMOF.metalnodelist) > 0:
-        uniqmetalnodelist = iMOF.get_uniq_fragmentlist(iMOF.metalnodelist)
+        uniqmetalnodelist = iMOF.get_uniq_fragmentlist(iMOF.metalnodelist, 0)
         count = 0
         for uniq in uniqmetalnodelist:
             xyzfile = wdir + 'node-' + str(count) + '.xyz'
@@ -1167,7 +1259,7 @@ if __name__ == '__main__':
             count += 1
 
     if len(iMOF.linkerlist) > 0:
-        uniqlinkerlist = iMOF.get_uniq_fragmentlist(iMOF.linkerlist)
+        uniqlinkerlist = iMOF.get_uniq_fragmentlist(iMOF.linkerlist, 1)
         count = 0
         for uniq in uniqlinkerlist:
             xyzfile = wdir + 'linker-' + str(count) + '.xyz'
@@ -1178,7 +1270,7 @@ if __name__ == '__main__':
             count += 1
 
     if len(iMOF.funcgrouplist) > 0:
-        uniqfuncgrouplist = iMOF.get_uniq_fragmentlist(iMOF.funcgrouplist)
+        uniqfuncgrouplist = iMOF.get_uniq_fragmentlist(iMOF.funcgrouplist, 1)
         count = 0
         for uniq in uniqfuncgrouplist:
             xyzfile = wdir + 'func-' + str(count) + '.xyz'
