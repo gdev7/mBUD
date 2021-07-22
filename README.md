@@ -22,12 +22,12 @@ All the extracted building units will be stored in the _output_ folder.
 
 ## Database
 
-The building unit (BU) [database](https://cnislab.com/mbud/database) consists of all the unique BU extracted from the Computation-Ready, Experimental (CoRE) MOF 2019-ASR database. The CoRE database consists of 9,268 MOF structures. We extracted  2,671 BUs ( including metal nodes, organic linkers, and functional groups) from the entire CoRE database. 
+The building unit (BU) [database](https://cnislab.com/mbud/database) consists of all the unique BU extracted from the subset Computation-Ready, Experimental (CoRE) MOF 2019-ASR database. The subset of CoRE database consists of 9,268 MOF structures. We extracted  2,580 BUs ( including metal nodes, and organic linkers) from this subset. 
 The provided database comprises both the experimental and computational BUs. Experimental BUs are essential for the visualization of the MOF chemistry. On the other hand, the computational BUs can be readily employed to construct MOF crystals computationally.
 
 ## Web
 
-We have alsom presented the web-version of the [mBUD package](https://cnislab.com/mbud/tool). To extract the building units (BUs) from a MOF structure, upload the Crystallographic Information File (CIF) for the MOF. Once the analysis is complete, the extracted BUs (in both experimental and computational representation) can be visualized and downloaded in the CIF format.
+We have also presented the web-version of the [mBUD package](https://cnislab.com/mbud/tool). To extract the building units (BUs) from a MOF structure, upload the Crystallographic Information File (CIF) for the MOF. Once the analysis is complete, the extracted BUs (in both experimental and computational representation) can be visualized and downloaded in the CIF format.
 Currently, our code can read 'P 1' space group only. So, the Crystallographic Information File (CIF) for all the structures need to be converted into the 'P 1' space group. This operation can be accomplished using the cif2cell python package.
 
 
