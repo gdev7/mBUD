@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 from numpy import sin,cos
 import math
+import argparse
 
 import networkx as nx
 
@@ -121,12 +122,11 @@ class MOF(ATOM,LIBRARY):
     lib = LIBRARY()
     dim = 3
     
-    def __init__ (self, name, mofdir):
-        self.name = name
-        self.mofdir = mofdir
-        self.G = nx.Graph(name = self.name)
-        self.fragG = nx.Graph(name = self.name)
-        self.compG = nx.Graph(name = self.name)
+    def __init__ (self, name):
+        self.ciffile = name
+        self.G = nx.Graph(name = 'mbud')
+        self.fragG = nx.Graph(name = 'mbud')
+        self.compG = nx.Graph(name = 'mbud')
         
         self.detH = 1.0
         
@@ -167,8 +167,7 @@ class MOF(ATOM,LIBRARY):
         return array
     
     def destroy_all(self):
-        del self.name
-        del self.mofdir
+        del self.ciffile
         
         self.G.clear()
         self.fragG.clear()
@@ -204,8 +203,6 @@ class MOF(ATOM,LIBRARY):
         del self.gridatomlist
         
     def get_boxinfo(self):
-        ciffilename = self.name + self.lib.cifextension
-        self.ciffile = os.path.join(self.mofdir, ciffilename)
         
         self.loop = False
         self.atom = self.destroy(self.atom)
@@ -604,8 +601,6 @@ class MOF(ATOM,LIBRARY):
         
     def get_neighborlist_without_grid(self):
         
-        start = time.time()
-        
         self.G.clear()
         self.G.add_nodes_from([i for i in range(len(self.atom))])
             
@@ -619,13 +614,10 @@ class MOF(ATOM,LIBRARY):
                             
                         if self.G.has_edge(iatom.index, jatom.index) == False:
                             self.G.add_edge(iatom.index, jatom.index)
-        
-        end = time.time()
+
         #print('Bond Calculation Time (s):\t', (end-start))
         
     def get_neighborlist_with_grid(self):
-        
-        start = time.time()
         
         self.G.clear()
         self.G.add_nodes_from([i for i in range(len(self.atom))])
@@ -643,7 +635,6 @@ class MOF(ATOM,LIBRARY):
                             if self.G.has_edge(iatom.index, jatom.index) == False:
                                 self.G.add_edge(iatom.index, jatom.index)
                                 
-        end = time.time()
         #print('Bond Calculation Time (s):\t', (end-start))
         
     def get_neighborlist(self, grid):
@@ -810,16 +801,11 @@ class MOF(ATOM,LIBRARY):
         for imetalnode in self.metalnodelist:
             calist = []
             for iindex in imetalnode:
-                print(self.atom[iindex].label)
+                #print(self.atom[iindex].label)
                 for inode, jnode in self.capairlist:
                     if iindex == inode:
                         calist.append(jnode)
 
-            print(calist)
-            for ica in calist:
-                print(self.atom[ica].label, end = ' ')
-            print('')
-            
             capairlist = []
             removecalist = []
             for k, ica in enumerate(calist):
@@ -840,11 +826,6 @@ class MOF(ATOM,LIBRARY):
                                                 if self.atom[kneighbor].symbol != 'H':
                                                     update = False
                                     
-                                    if update:
-                                        print(self.atom[ica].index,self.atom[ica].label,self.atom[ica].neighborlist)
-                                        print(self.atom[jca].index,self.atom[jca].label,self.atom[jca].neighborlist)
-                                        print(self.atom[ineighbor].index,self.atom[ineighbor].label)
-
                                     if update:
                                         for kneighbor in self.atom[jneighbor].neighborlist:
                                             if kneighbor not in allcalist:
@@ -867,9 +848,6 @@ class MOF(ATOM,LIBRARY):
                 for inode, jnode in capairlist:
                     self.compcapairlist.append([inode,jnode])
                     
-            for inode, jnode in self.compcapairlist:
-                print(self.atom[inode].label,self.atom[jnode].label)
-
             del calist
             del capairlist
             del removecalist
@@ -1131,7 +1109,7 @@ class MOF(ATOM,LIBRARY):
     def write_cif(self, fragment, ciffile, case):
 
         f = open(ciffile,'w')
-        f.write(self.name + '\n')
+        f.write(self.ciffile + '\n')
         today = datetime.date.today()
         date = today.strftime("%Y-%m-%d")
         f.write('_audit_creation_date\t\t\t%s\n' %date)
@@ -1211,10 +1189,20 @@ class MOF(ATOM,LIBRARY):
         
 if __name__ == '__main__':
     
-    MOFdir = '/home/user/data/'
-    wdir = os.getcwd()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--ciffile', type=str, required=True)
+    parser.add_argument('--outdir', type=str, required=True)
+    
+    args = parser.parse_args()
+    
+    mofname = args.ciffile
+    if args.outdir[len(args.outdir)-1] == '/':
+        outdir = args.outdir
+    else:
+        outdir = args.outdir + '/'
+    print(outdir)
 
-    iMOF = MOF('ABAVIJ_clean',MOFdir)
+    iMOF = MOF(mofname)
     iMOF.get_boxinfo()
     iMOF.get_hmatrix()
     iMOF.get_atomtypelist()
@@ -1229,10 +1217,10 @@ if __name__ == '__main__':
         uniqmetalnodelist = iMOF.get_uniq_fragmentlist(iMOF.compmetalnodelist, 2)
         count = 0
         for uniq in uniqmetalnodelist:
-            xyzfile = wdir + 'comp-node-' + str(count) + '.xyz'
+            xyzfile = outdir + 'comp-node-' + str(count) + '.xyz'
             iMOF.write_xyz(uniq, xyzfile, 0)
 
-            ciffile = wdir + 'comp-node-' + str(count) + '.cif'
+            ciffile = outdir + 'comp-node-' + str(count) + '.cif'
             iMOF.write_cif(uniq, ciffile, 0)
             count += 1
 
@@ -1240,10 +1228,10 @@ if __name__ == '__main__':
         uniqlinkerlist = iMOF.get_uniq_fragmentlist(iMOF.complinkerlist, 2)
         count = 0
         for uniq in uniqlinkerlist:
-            xyzfile = wdir + 'comp-linker-' + str(count) + '.xyz'
+            xyzfile = outdir + 'comp-linker-' + str(count) + '.xyz'
             iMOF.write_xyz(uniq, xyzfile, 1)
 
-            ciffile = wdir + 'comp-linker-' + str(count) + '.cif'
+            ciffile = outdir + 'comp-linker-' + str(count) + '.cif'
             iMOF.write_cif(uniq, ciffile, 1)
             count += 1
 
@@ -1251,10 +1239,10 @@ if __name__ == '__main__':
         uniqmetalnodelist = iMOF.get_uniq_fragmentlist(iMOF.metalnodelist, 0)
         count = 0
         for uniq in uniqmetalnodelist:
-            xyzfile = wdir + 'node-' + str(count) + '.xyz'
+            xyzfile = outdir + 'node-' + str(count) + '.xyz'
             iMOF.write_xyz(uniq, xyzfile, 2)
 
-            ciffile = wdir + 'node-' + str(count) + '.cif'
+            ciffile = outdir + 'node-' + str(count) + '.cif'
             iMOF.write_cif(uniq, ciffile, 2)
             count += 1
 
@@ -1262,10 +1250,10 @@ if __name__ == '__main__':
         uniqlinkerlist = iMOF.get_uniq_fragmentlist(iMOF.linkerlist, 1)
         count = 0
         for uniq in uniqlinkerlist:
-            xyzfile = wdir + 'linker-' + str(count) + '.xyz'
+            xyzfile = outdir + 'linker-' + str(count) + '.xyz'
             iMOF.write_xyz(uniq, xyzfile, 2)
 
-            ciffile = wdir + 'linker-' + str(count) + '.cif'
+            ciffile = outdir + 'linker-' + str(count) + '.cif'
             iMOF.write_cif(uniq, ciffile, 2)
             count += 1
 
@@ -1273,10 +1261,10 @@ if __name__ == '__main__':
         uniqfuncgrouplist = iMOF.get_uniq_fragmentlist(iMOF.funcgrouplist, 1)
         count = 0
         for uniq in uniqfuncgrouplist:
-            xyzfile = wdir + 'func-' + str(count) + '.xyz'
+            xyzfile = outdir + 'func-' + str(count) + '.xyz'
             iMOF.write_xyz(uniq, xyzfile, 2)
 
-            ciffile = wdir + 'funcgroup-' + str(count) + '.cif'
+            ciffile = outdir + 'funcgroup-' + str(count) + '.cif'
             iMOF.write_cif(uniq, ciffile, 2)
             count += 1
 
@@ -1284,10 +1272,10 @@ if __name__ == '__main__':
         uniqsolventlist = iMOF.get_uniq_fragmentlist(iMOF.solventlist)
         count = 0
         for uniq in uniqsolventlist:
-            xyzfile = wdir + 'solvent-' + str(count) + '.xyz'
+            xyzfile = outdir + 'solvent-' + str(count) + '.xyz'
             iMOF.write_xyz(uniq, xyzfile, 2)
 
-            ciffile = wdir + 'solvent-' + str(count) + '.cif'
+            ciffile = outdir + 'solvent-' + str(count) + '.cif'
             iMOF.write_cif(uniq, ciffile, 2)
             count += 1
     iMOF.destroy_all()
