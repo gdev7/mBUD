@@ -558,10 +558,7 @@ class MOF(ATOM,LIBRARY):
         minbondlength2 *= minbondlength2
         
         if val < minbondlength2:
-            f = open('overlap.txt','a')
-            f.write('%a %a %a %-10.6f\n' %(self.name, iatom.label, jatom.label, np.sqrt(val)))
-            f.close()
-            #raise ValueError('Atom overlap detected')
+            raise ValueError('Atom overlap detected')
         return True
 
     def get_distance(self, x1, x2):
@@ -681,9 +678,6 @@ class MOF(ATOM,LIBRARY):
                 
         #Remove solvent from graph
         if len(self.solventlist) > 0:
-            f = open('solvent.txt','a')
-            f.write('%a\n' %self.name)
-            f.close()
             print('Solvent presence:\t\t','True')
             for isolvent in self.solventlist:
                 self.G.remove_nodes_from(isolvent)
@@ -1269,7 +1263,7 @@ if __name__ == '__main__':
             count += 1
 
     if len(iMOF.solventlist) > 0:
-        uniqsolventlist = iMOF.get_uniq_fragmentlist(iMOF.solventlist)
+        uniqsolventlist = iMOF.get_uniq_fragmentlist(iMOF.solventlist, 2)
         count = 0
         for uniq in uniqsolventlist:
             xyzfile = outdir + 'solvent-' + str(count) + '.xyz'
