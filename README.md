@@ -9,9 +9,9 @@ We have employed mBUD to extract the BUs from the Computation-Ready, Experimenta
 We have provided the code for the entire package here as well as on our [web page](https://cnislab.com/mbud/code). This is a Python version 3.7 based object-oriented code. It consists of three prime classes library, atom, and MOF. The library incorporates the input data required for the analysis (such as atom typing radius (ATR), skin distance, etc.). The atom class includes all the relevant information and functions for the atoms, such as the list of neighbor atoms, metal/non-metal classification, etc. Likewise, the MOF class contains the functions applicable to the MOF structure like solvent identification, bonded network formation, deconstruction of MOF, etc. The final output is the extracted building units in the Crystallographic Information File (CIF) format.
 
 __First install the dependencies via conda or pip:__
-* pandas
-* numpy
-* networkx
+* pandas>=1.2.4
+* numpy>=1.20.1
+* networkx>=2.5
 * datetime
 
 __Use the following command to run the code:__
