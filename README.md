@@ -12,7 +12,6 @@ __First install the dependencies via conda or pip:__
 * pandas>=1.2.4
 * numpy>=1.20.1
 * networkx>=2.5
-* datetime
 
 __Use the following command to run the code:__
 ```
