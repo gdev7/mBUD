@@ -15,7 +15,7 @@ __First install the dependencies via conda or pip:__
 
 __Use the following command to run the code:__
 ```
-python3 mBUD.py --ciffile path/ABCDEF.cif --outdir path/output
+python3 mBUD.py --ciffile path/ABCDEF.cif --outdir path/output --cif2cell path/cif2cell
 ```
 All the extracted building units will be stored in the _output_ folder.
 
