@@ -4,6 +4,7 @@ import numpy as np
 from numpy import sin,cos
 import math
 import argparse
+import cif2cell
 
 import networkx as nx
 
@@ -1186,6 +1187,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--ciffile', type=str, required=True)
     parser.add_argument('--outdir', type=str, required=True)
+    parser.add_argument('--cif2cell', type=str)
     
     args = parser.parse_args()
     
@@ -1194,7 +1196,15 @@ if __name__ == '__main__':
         outdir = args.outdir
     else:
         outdir = args.outdir + '/'
-    print(outdir)
+    
+    if args.cif2cell:
+        cif2cell = args.cif2cell
+    else:
+        cif2cell = "cif2cell"
+        
+    os.system(f"cp {mofname} mbud_{mofname}")
+    os.system(f"{cif2cell} -f mbud_{mofname} -p cif -o {mofname}")
+    os.system(f"rm mbud_{mofname}")
 
     iMOF = MOF(mofname)
     iMOF.get_boxinfo()
